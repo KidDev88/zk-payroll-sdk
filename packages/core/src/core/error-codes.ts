@@ -207,6 +207,14 @@ export const ERROR_CODE_REGISTRY: Record<string, ErrorCodeEntry> = {
     suggestedMessage:
       "The smart contract rejected the transaction. This may indicate invalid parameters or insufficient permissions.",
   },
+  CONTRACT_PAUSED: {
+    category: ErrorCategory.CONTRACT,
+    meaning:
+      "The payroll contract is paused — payments and batch submissions are temporarily disabled on-chain.",
+    retryable: false,
+    suggestedMessage:
+      "The payroll contract is currently paused. No payments can be submitted until the contract is resumed. Please try again later or contact your payroll administrator.",
+  },
   UNKNOWN_RPC_ERROR: {
     category: ErrorCategory.CONTRACT,
     meaning: "Unclassified contract execution error that does not fit known failure patterns.",

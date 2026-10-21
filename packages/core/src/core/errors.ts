@@ -134,6 +134,7 @@ export const ContractErrorCode = {
   RPC_TIMEOUT: "RPC_TIMEOUT",
   INSUFFICIENT_FEE: "INSUFFICIENT_FEE",
   CONTRACT_REVERT: "CONTRACT_REVERT",
+  CONTRACT_PAUSED: "CONTRACT_PAUSED",
   INVALID_RESPONSE: "INVALID_RESPONSE",
   UNKNOWN_RPC_ERROR: "UNKNOWN_RPC_ERROR",
 } as const;
@@ -156,6 +157,7 @@ export function classifyContractErrorCode(code: ContractErrorCodeType): TimeoutF
       return TimeoutFailureState.EXPIRED;
     case ContractErrorCode.SIMULATION_FAILED:
     case ContractErrorCode.CONTRACT_REVERT:
+    case ContractErrorCode.CONTRACT_PAUSED:
       return TimeoutFailureState.TERMINAL;
     case ContractErrorCode.INSUFFICIENT_FEE:
     case ContractErrorCode.TRANSACTION_SUBMISSION_FAILED:
@@ -291,6 +293,8 @@ export const DEFAULT_ERROR_MESSAGES: Record<string, string> = {
     "The transaction fee was too low. Try increasing the fee and submitting again.",
   [ContractErrorCode.CONTRACT_REVERT]:
     "The smart contract rejected the transaction. This may indicate invalid parameters or insufficient permissions.",
+  [ContractErrorCode.CONTRACT_PAUSED]:
+    "The payroll contract is currently paused. No payments can be submitted until the contract is resumed. Please try again later or contact your payroll administrator.",
   [ContractErrorCode.UNKNOWN_RPC_ERROR]:
     "An unexpected error occurred while communicating with the blockchain network. Please try again.",
   NETWORK_ERROR: "A network error occurred. Please check your internet connection and try again.",
@@ -452,6 +456,7 @@ const CATEGORY_MAP: Record<string, string> = {
   RPC_TIMEOUT: "Network",
   INSUFFICIENT_FEE: "Fee",
   CONTRACT_REVERT: "Contract",
+  CONTRACT_PAUSED: "Contract",
   INVALID_RESPONSE: "Network",
   UNKNOWN_RPC_ERROR: "Unknown",
   NETWORK_ERROR: "Network",
@@ -627,6 +632,16 @@ export function mapRpcError(error: unknown, context: ErrorContext = {}): Contrac
     return new ContractExecutionError(
       `Insufficient fee: ${msg}`,
       ContractErrorCode.INSUFFICIENT_FEE,
+      context,
+      cause
+    );
+  }
+
+  if (/contract.*paus|CONTRACT_PAUSED|ContractPaused|payroll.*paus|payments?.*paus/i.test(msg)) {
+    return new ContractExecutionError(
+      DEFAULT_ERROR_MESSAGES[ContractErrorCode.CONTRACT_PAUSED] ??
+        "The payroll contract is currently paused.",
+      ContractErrorCode.CONTRACT_PAUSED,
       context,
       cause
     );

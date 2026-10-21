@@ -242,3 +242,128 @@ export function mapReservationError(
   const msg = error instanceof Error ? error.message : String(error);
   return new ContractExecutionError(msg, ContractErrorCode.UNKNOWN_RPC_ERROR, context, error);
 }
+
+// ── Paused Contract Error Mapping ───────────────────────────────────────────
+
+/** Error codes for paused-contract failures. */
+export const PausedErrorCode = {
+  CONTRACT_PAUSED: "CONTRACT_PAUSED",
+  PAYROLL_PAUSED: "PAYROLL_PAUSED",
+  PAYMENT_PAUSED: "PAYMENT_PAUSED",
+} as const;
+
+export type PausedErrorCodeType = (typeof PausedErrorCode)[keyof typeof PausedErrorCode];
+
+/**
+ * User-friendly messages for paused-contract errors, keyed by error code.
+ * Avoids exposing raw contract messages or internal identifiers.
+ */
+export const PAUSED_ERROR_MESSAGES: Record<PausedErrorCodeType, string> = {
+  [PausedErrorCode.CONTRACT_PAUSED]:
+    "The payroll contract is currently paused. No payments can be submitted until the contract is resumed. Please try again later or contact your payroll administrator.",
+  [PausedErrorCode.PAYROLL_PAUSED]:
+    "Payroll processing is paused for this contract. Payments and batch submissions are temporarily disabled. Please try again after payroll is resumed.",
+  [PausedErrorCode.PAYMENT_PAUSED]:
+    "Individual payments are paused for this contract. Please try again after payments are resumed or contact your payroll administrator.",
+};
+
+/**
+ * Returns true when a contract error indicates the contract is paused.
+ *
+ * Checks for common patterns in contract revert messages:
+ * - "contract is paused" / "contract paused"
+ * - "CONTRACT_PAUSED" / "ContractPaused"
+ * - "payroll.*paused" / "payments.*paused"
+ * - "temporarily disabled"
+ */
+export function isContractPausedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /contract.*paus|CONTRACT_PAUSED|ContractPaused|payroll.*paus|payments.*paus|temporarily disabled/i.test(
+    msg
+  );
+}
+
+/**
+ * Returns true when a contract error indicates payroll processing is paused.
+ */
+export function isPayrollPausedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /payroll.*paus|PAYROLL_PAUSED|PayrollPaused/i.test(msg);
+}
+
+/**
+ * Returns true when a contract error indicates individual payments are paused.
+ */
+export function isPaymentPausedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /payments?.*paus|PAYMENT_PAUSED|PaymentPaused/i.test(msg);
+}
+
+/**
+ * Maps a paused-contract error to a user-friendly, actionable message.
+ *
+ * @param error - The error to map
+ * @param overrides - Optional custom message overrides keyed by paused error code
+ * @returns A user-friendly error message
+ */
+export function getPausedContractErrorMessage(
+  error: unknown,
+  overrides?: Partial<Record<PausedErrorCodeType, string>>
+): string {
+  const messages = { ...PAUSED_ERROR_MESSAGES, ...overrides };
+
+  if (isPaymentPausedError(error)) {
+    return messages[PausedErrorCode.PAYMENT_PAUSED];
+  }
+  if (isPayrollPausedError(error)) {
+    return messages[PausedErrorCode.PAYROLL_PAUSED];
+  }
+  if (isContractPausedError(error)) {
+    return messages[PausedErrorCode.CONTRACT_PAUSED];
+  }
+
+  return "The payroll contract is currently unavailable. Please try again later.";
+}
+
+/**
+ * Maps a raw paused-contract error to a typed ContractExecutionError with a
+ * user-friendly, actionable message.
+ *
+ * @param error - The raw error from contract/RPC
+ * @param context - Optional context metadata
+ * @returns A typed ContractExecutionError
+ */
+export function mapPausedContractError(
+  error: unknown,
+  context: Record<string, unknown> = {}
+): ContractExecutionError {
+  const friendlyMessage = getPausedContractErrorMessage(error);
+
+  if (isPaymentPausedError(error)) {
+    return new ContractExecutionError(
+      friendlyMessage,
+      ContractErrorCode.CONTRACT_PAUSED,
+      context,
+      error
+    );
+  }
+  if (isPayrollPausedError(error)) {
+    return new ContractExecutionError(
+      friendlyMessage,
+      ContractErrorCode.CONTRACT_PAUSED,
+      context,
+      error
+    );
+  }
+  if (isContractPausedError(error)) {
+    return new ContractExecutionError(
+      friendlyMessage,
+      ContractErrorCode.CONTRACT_PAUSED,
+      context,
+      error
+    );
+  }
+
+  const msg = error instanceof Error ? error.message : String(error);
+  return new ContractExecutionError(msg, ContractErrorCode.UNKNOWN_RPC_ERROR, context, error);
+}
