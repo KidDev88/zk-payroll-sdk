@@ -27,3 +27,13 @@ export {
   parseSettlementExpiredEvents,
 } from "./settlementExpiry";
 export type { SettlementExpiredEvent } from "./settlementExpiry";
+export {
+  parseInterruptedSettlementRecoveryEvent,
+  parseInterruptedSettlementRecoveryEvents,
+  INTERRUPTED_SETTLEMENT_RECOVERY_EVENT_NAME,
+} from "./settlementRecovery";
+export type {
+  InterruptedSettlementRecoveryEvent,
+  SettlementInterruptionReason,
+  SettlementRecoveryStatus,
+} from "./settlementRecovery";
