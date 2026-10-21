@@ -4,5 +4,6 @@ export * from "./paginate";
 export * from "./deduplication";
 export * from "./partialBatchFailureParser";
 export * from "./chunking";
+export * from "./contractBatchLimit";
 export * from "./batchExecutionDependencyValidator";
 export * from "./commitmentDuplicateValidator";

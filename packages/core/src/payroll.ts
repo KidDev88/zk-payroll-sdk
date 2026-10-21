@@ -18,6 +18,7 @@ import { IdempotencyRegistry, createPaymentIdempotencyKey } from "./core/idempot
 import { createPayrollProgressEvent } from "./progress";
 import { assertValidPayrollWitness } from "./crypto/proofInputSanitizer";
 import { assertValidPageSize, iterateBatches } from "./batch/paginate";
+import { CONTRACT_MAX_PAYOUT_BATCH_SIZE } from "./batch/contractBatchLimit";
 import type { BatchPayload } from "./batch/BatchPayloadBuilder";
 import {
   createPayrollReceipt,
@@ -436,8 +437,11 @@ export class PayrollService {
    * Process a batch of private payroll payments.
    * Validates all batch payment entries first; rejects invalid payloads before submission.
    *
-   * When `batchSize` is provided, validated entries are processed incrementally
-   * in deterministic, order-preserving batches via the batch pagination helper.
+   * Entries are always processed incrementally in deterministic, order-preserving
+   * batches via the batch pagination helper. When `batchSize` is omitted the
+   * contract payout limit ({@link CONTRACT_MAX_PAYOUT_BATCH_SIZE}) is applied,
+   * so an oversized batch is split automatically instead of being submitted
+   * as one on-chain-unfriendly payload.
    * Optional progress events report batch lifecycle and cumulative successful
    * item counts without exposing payment details. Results are returned in the
    * original entry order either way.
@@ -451,10 +455,11 @@ export class PayrollService {
     const { PayrollValidation } = require("./core/validation");
     const payload: BatchPayload = PayrollValidation.assertValidBatchPayload(entries);
 
+    const effectiveBatchSize = batchSize ?? CONTRACT_MAX_PAYOUT_BATCH_SIZE;
     const results: PaymentResult[] = [];
     const totalItems = payload.entries.length;
-    assertValidPageSize(batchSize);
-    const totalBatches = totalItems === 0 ? 0 : Math.ceil(totalItems / (batchSize ?? totalItems));
+    assertValidPageSize(effectiveBatchSize);
+    const totalBatches = totalItems === 0 ? 0 : Math.ceil(totalItems / effectiveBatchSize);
     let itemsProcessed = 0;
     const emitProgress = (stage: SafeBatchProgressStage, batchIndex: number, message: string) => {
       onProgress?.({
@@ -475,7 +480,7 @@ export class PayrollService {
       0,
       `Validating ${totalItems} payroll item(s) across ${totalBatches} batch(es)...`
     );
-    for (const batch of iterateBatches(payload.entries, batchSize)) {
+    for (const batch of iterateBatches(payload.entries, effectiveBatchSize)) {
       emitProgress(
         "batch_starting",
         batch.index,
