@@ -1,4 +1,5 @@
 import { PayrollValidation } from "../core/validation";
+import { checkPaymentAssetAuthorization } from "../assets/paymentAssetAuthorization";
 import { SimulationFinding, SimulationInput, SimulationOptions, SimulationResult } from "./types";
 
 const BASE_FEE_STROOPS = 100n;
@@ -60,6 +61,32 @@ function checkAssetWarnings(input: SimulationInput): SimulationFinding[] {
   return findings;
 }
 
+/**
+ * Preflight authorization check for the payment asset.
+ *
+ * Rejects assets that are not payment-compatible, not registered, or not on
+ * the employer's allowlist (when one is supplied in `options.allowedAssetIds`).
+ */
+function checkAssetAuthorization(input: SimulationInput): SimulationFinding[] {
+  const { options = {} } = input;
+  if (input.asset === undefined) return [];
+
+  const result = checkPaymentAssetAuthorization(input.asset, {
+    allowedAssetIds: options.allowedAssetIds,
+  });
+
+  if (result.authorized) return [];
+
+  return [
+    {
+      code: "PAYMENT_ASSET_UNAUTHORIZED",
+      severity: "error",
+      message: result.message ?? "Payment asset is not authorized.",
+      field: "asset",
+    },
+  ];
+}
+
 function estimateFee(options: SimulationOptions = {}): bigint {
   return options.skipProof !== false ? BASE_FEE_STROOPS : BASE_FEE_STROOPS + PROOF_FEE_STROOPS;
 }
@@ -81,6 +108,7 @@ export async function simulatePayroll(input: SimulationInput): Promise<Simulatio
     ...validateFields(input),
     ...checkAmountWarnings(input),
     ...checkAssetWarnings(input),
+    ...checkAssetAuthorization(input),
   ];
 
   const hasErrors = findings.some((f) => f.severity === "error");

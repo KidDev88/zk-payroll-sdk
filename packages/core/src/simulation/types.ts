@@ -23,6 +23,11 @@ export interface SimulationOptions {
   skipProof?: boolean;
   /** Override the network for simulation purposes */
   network?: string;
+  /**
+   * Employer allowlist of permitted payment asset IDs. When supplied, the
+   * preflight rejects assets that are not on the list.
+   */
+  allowedAssetIds?: readonly string[];
 }
 
 export type SimulationInput = PaymentParams & { options?: SimulationOptions };
